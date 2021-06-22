@@ -8,6 +8,10 @@ retrieve_elims <-
            path_elims = file.path('data-raw', sprintf('elims-s%02d.rds', season)),
            path_html = file.path('data-raw', sprintf('%02d.html', season)),
            overwrite = FALSE) {
+    season = 34
+    path_elims = file.path('data-raw', sprintf('elims-s%02d.rds', season))
+    path_html = file.path('data-raw', sprintf('%02d.html', season))
+    overwrite = FALSE
 
     if(file.exists(path_elims) & !overwrite) {
       return(path_elims)
@@ -54,15 +58,28 @@ retrieve_elims <-
       html_nodes('td')
     tds
 
+    nm <- case_when(
+      season == 34 ~ 'background',
+      season >= 35 ~ 'bgcolor'
+    )
+
+
+    f <- if(season >= 35) {
+      function(x) html_attr(x, 'bgcolor')
+    } else if (season == 34) {
+      function(x) html_attr(x, 'style') %>% str_remove('background[:]')
+    }
+
+    # Doesn't really work for wow?
     supp <-
       tibble(
         value = tds %>% html_text(trim = TRUE),
-        color = tds %>% html_attr('bgcolor')
+        color = tds %>% f()
       ) %>%
-      mutate(contestant = ifelse(lag(color, 1) == 'black', value, NA_character_)) %>%
+      mutate(contestant = ifelse(!(value %in% c('SAFE', 'ELIM', 'WIN', 'OUT', 'QUIT', 'DQ', 'WINNER', 'LOSER')), value, NA_character_)) %>%
       filter(value != '') %>%
       fill(contestant) %>%
-      filter(value != contestant)
+      filter(value != contestant | is.na(contestant))
     supp
 
     df_init <-
